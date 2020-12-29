@@ -1,3 +1,4 @@
+from tunfish.library.model import Router
 from os import environ
 import time
 
@@ -28,7 +29,6 @@ class Component(ApplicationSession):
             print("{}: {} in {}".format(msg, res, duration))
             if msg == "REQUEST GATEWAY":
                 # TODO: open interface
-                from tunfish.model import Router
                 router = Router()
 
                 # new interface/wg control
@@ -113,5 +113,8 @@ class TunfishClient:
         runner.run(Component)
 
 
-
-
+def start():
+    name = sys.argv[1]
+    from tunfish.client import TunfishClient
+    client = TunfishClient()
+    client.start(name)
