@@ -47,7 +47,7 @@ setup(name='tunfish-client',
           'autobahn',
           'python-iptables',
           'pyroute2',
-          'SQLAlchemy',
+          'SQLAlchemy==1.3.22',
           'SQLAlchemy-Utils',
       ],
       dependency_links=[
