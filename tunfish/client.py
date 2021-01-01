@@ -1,19 +1,74 @@
-from tunfish.library.model import Router
-from os import environ
-import time
-
+# (c) 2018-2020 The Tunfish Developers
 import asyncio
+import json
+import os
+import ssl
+import sys
+import time
 from functools import partial
 
-from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
+import six
+from autobahn.asyncio.wamp import ApplicationRunner, ApplicationSession
+from pyroute2 import IPDB, IPRoute
 
-import iptc
 
-import json
+PATH = '/vagrant/etc/tunfish'
+CERTPATH = '/vagrant/certs'
 
-# PATH = '/vagrant/config/'
-PATH = '/vagrant/etc/tunfish/'
-CERTPATH = '/vagrant/certs/'
+
+class Interface:
+
+    def __init__(self):
+        self.ifname = None
+        self.ip = None
+
+        from pyroute2 import WireGuard
+        self.wg = WireGuard()
+
+    def create(self, **kwargs):
+        # Create WireGuard Interface
+        self.ifname = kwargs.get('ifname')
+        self.ip = kwargs.get('ip')
+
+        with IPDB() as ip:
+            dev = ip.create(kind='wireguard', ifname=self.ifname)
+            dev.add_ip(self.ip)
+            dev.up()
+            dev.commit()
+
+        self.wg.set(self.ifname, private_key=kwargs.get('privatekey'), listen_port=kwargs.get('listenport'))
+
+    # noch nicht getestet
+    def delete(self, **kwargs):
+        self.ifname = kwargs.get('ifname')
+        with IPDB() as ip:
+            dev = ip.delete(ifname=self.ifname)
+            dev.commit()
+
+    def addpeer(self, **kwargs):
+        # Create WireGuard object
+
+        # build peer dict
+        peer = {}
+        for key in kwargs.keys():
+            if key == 'publickey':
+                peer = {**peer, **{'public_key': kwargs.get('publickey')}}
+            if key == 'endpointaddr':
+                peer = {**peer, **{'endpoint_addr': kwargs.get('endpointaddr')}}
+            if key == 'endpointport':
+                peer = {**peer, **{'endpoint_port': kwargs.get('endpointport')}}
+            if key == 'keepalive':
+                peer = {**peer, **{'persistent_keepalive': kwargs.get('keepalive')}}
+            if key == 'allowedips':
+                peer = {**peer, **{'allowed_ips': kwargs.get('allowedips')}}
+
+        print(f"peer: {peer}")
+
+        # add peer
+        self.wg.set(self.ifname, peer=peer)
+
+    def removepeer(self):
+        pass
 
 
 class Component(ApplicationSession):
@@ -29,24 +84,27 @@ class Component(ApplicationSession):
             print("{}: {} in {}".format(msg, res, duration))
             if msg == "REQUEST GATEWAY":
                 # TODO: open interface
-                router = Router()
+
+                interface = Interface()
+                device = IPRoute()
 
                 # new interface/wg control
                 print(f"new control")
-                router.interface.create(ifname=self.data['device_id'], ip=self.data['ip']+"/"+self.data['mask'], privatekey=self.data['wgprvkey'], listenport=42001)
-                router.interface.addpeer(ifname=self.data['device_id'], publickey=res['wgpubkey'], endpointaddr=res['endpoint'], endpointport=res['listen_port'], keepalive=10, allowedips={'0.0.0.0/0'})
+                interface.create(ifname=self.data['device_id'], ip=self.data['ip']+"/"+self.data['mask'], privatekey=self.data['wgprvkey'], listenport=42001)
+                interface.addpeer(ifname=self.data['device_id'], publickey=res['wgpubkey'], endpointaddr=res['endpoint'], endpointport=res['listen_port'], keepalive=10, allowedips={'0.0.0.0/0'})
 
                 # set rule
                 # router.dev.rule('del', table=10, src='192.168.100.10/24')
                 # router.dev.rule('add', table=10, src='172.16.100.15/16')
                 # router.dev.rule('add', table=10, src='10.0.23.15/16')
-                router.dev.rule('add', table=10, src=self.data['ip']+"/"+self.data['mask'])
+                device.rule('add', table=10, src=self.data['ip']+"/"+self.data['mask'])
                 # set route
                 # router.dev.route('del', table=10, src='192.168.100.10/24', oif=idx)
-                idx = router.dev.link_lookup(ifname=self.data['device_id'])[0]
-                router.dev.route('add', table=10, src='10.0.42.15/16', gateway='10.0.23.15', oif=idx)
+                idx = device.link_lookup(ifname=self.data['device_id'])[0]
+                device.route('add', table=10, src='10.0.42.15/16', gateway='10.0.23.15', oif=idx)
 
                 # iptables
+                import iptc
                 chain = iptc.Chain(iptc.Table(iptc.Table.NAT), "POSTROUTING")
                 rule = iptc.Rule()
                 rule.out_interface = "tf-0815"
@@ -54,7 +112,10 @@ class Component(ApplicationSession):
                 rule.target = target
                 chain.insert_rule(rule)
 
-        with open(PATH + self.config.extra['v1'] + '.json', 'r') as f:
+        print(f"EXTRA: {self.config.extra['v1']}")
+
+        config_file = f"{PATH}/{self.config.extra['v1']}.json"
+        with open(config_file, 'r') as f:
             self.data = json.load(f)
         print(f"self.data: {self.data}")
         t1 = time.process_time()
@@ -69,8 +130,6 @@ class Component(ApplicationSession):
         task.add_done_callback(partial(got, t1, "REQUEST STATUS"))
         await asyncio.gather(task)
 
-        print(f"EXTRA: {self.config.extra['v1']}")
-
         self.leave()
 
     def onDisconnect(self):
@@ -81,19 +140,19 @@ class Component(ApplicationSession):
 
 class TunfishClient:
 
-    clientdata = None
+    def __init__(self):
+        self.clientdata = None
 
     def start(self, conf):
 
-        import six
-        import ssl
+        config_file = f"{PATH}/{conf}.json"
 
-        with open(PATH + conf + '.json', 'r') as f:
+        with open(config_file, 'r') as f:
             self.clientdata = json.load(f)
 
-        cf = CERTPATH + self.clientdata['cf']
-        kf = CERTPATH + self.clientdata['kf']
-        caf = CERTPATH + self.clientdata['caf']
+        cf = f"{CERTPATH}/{self.clientdata['cf']}"
+        kf = f"{CERTPATH}/{self.clientdata['kf']}"
+        caf = f"{CERTPATH}/{self.clientdata['caf']}"
 
         client_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         client_ctx.verify_mode = ssl.CERT_REQUIRED
@@ -103,8 +162,8 @@ class TunfishClient:
         client_ctx.load_verify_locations(cafile=caf)
         client_ctx.set_ciphers('ECDH+AESGCM')
 
-        # url = environ.get("AUTOBAHN_DEMO_ROUTER", u"wss://127.0.0.1:8080/ws")
-        url = environ.get("AUTOBAHN_DEMO_ROUTER", u"wss://172.16.42.2:8080/ws")
+        # url = os.environ.get("AUTOBAHN_DEMO_ROUTER", u"wss://127.0.0.1:8080/ws")
+        url = os.environ.get("AUTOBAHN_DEMO_ROUTER", u"wss://172.16.42.2:8080/ws")
         print(f"URL: {url}")
         if six.PY2 and type(url) == six.binary_type:
             url = url.decode('utf8')
@@ -115,6 +174,5 @@ class TunfishClient:
 
 def start():
     name = sys.argv[1]
-    from tunfish.client import TunfishClient
     client = TunfishClient()
     client.start(name)
