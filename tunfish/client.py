@@ -1,16 +1,16 @@
 # (c) 2018-2020 The Tunfish Developers
 import asyncio
-import json
 import os
 import ssl
-import sys
 import time
 from functools import partial
+from pathlib import Path
 
+import click
+import json5
 import six
 from autobahn.asyncio.wamp import ApplicationRunner, ApplicationSession
 from pyroute2 import IPDB, IPRoute
-
 
 PATH = '/vagrant/etc/tunfish'
 CERTPATH = '/vagrant/certs'
@@ -75,7 +75,7 @@ class TunfishClientSession(ApplicationSession):
 
     def __init__(self, *args, **kwargs):
         super(TunfishClientSession, self).__init__(*args, **kwargs)
-        self.tfcfg = self.config.extra["tunfish_config"]
+        self.tfcfg = self.config.extra["tunfish_settings"]
 
     async def onJoin(self, details):
 
@@ -138,19 +138,16 @@ class TunfishClientSession(ApplicationSession):
 
 class TunfishClient:
 
-    def __init__(self):
-        self.clientdata = None
-
-    def start(self, conf):
-
-        config_file = f"{PATH}/{conf}.json"
-
+    def __init__(self, config_file: Path):
+        self.settings = None
         with open(config_file, 'r') as f:
-            self.clientdata = json.load(f)
+            self.settings = json5.load(f)
 
-        cf = f"{CERTPATH}/{self.clientdata['cf']}"
-        kf = f"{CERTPATH}/{self.clientdata['kf']}"
-        caf = f"{CERTPATH}/{self.clientdata['caf']}"
+    def start(self):
+
+        cf = f"{CERTPATH}/{self.settings['cf']}"
+        kf = f"{CERTPATH}/{self.settings['kf']}"
+        caf = f"{CERTPATH}/{self.settings['caf']}"
 
         client_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         client_ctx.verify_mode = ssl.CERT_REQUIRED
@@ -166,11 +163,15 @@ class TunfishClient:
         if six.PY2 and type(url) == six.binary_type:
             url = url.decode('utf8')
         realm = u"tf_cb_router"
-        runner = ApplicationRunner(url, realm, ssl=client_ctx, extra={'tunfish_config': self.clientdata})
+        runner = ApplicationRunner(url, realm, ssl=client_ctx, extra={'tunfish_settings': self.settings})
         runner.run(TunfishClientSession)
 
 
-def start():
-    name = sys.argv[1]
-    client = TunfishClient()
-    client.start(name)
+@click.command(help="""Bootstrap and maintain connection to Tunfish network.""")
+@click.option("--config",
+              type=click.Path(exists=True, file_okay=True, dir_okay=False),
+              help="The configuration file",
+              required=True)
+def start(config: Path):
+    client = TunfishClient(config_file=config)
+    client.start()

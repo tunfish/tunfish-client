@@ -46,6 +46,8 @@ setup(name='tunfish-client',
           'python-iptables',
           'pyroute2',
           'autobahn',
+          'click',
+          'json5',
       ],
       dependency_links=[
       ],
