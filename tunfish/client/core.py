@@ -1,5 +1,6 @@
 # (c) 2018-2020 The Tunfish Developers
 import asyncio
+import logging
 import os
 import ssl
 import time
@@ -10,65 +11,15 @@ import click
 import json5
 import six
 from autobahn.asyncio.wamp import ApplicationRunner, ApplicationSession
-from pyroute2 import IPDB, IPRoute
+from pyroute2 import IPRoute
 
-PATH = '/vagrant/etc/tunfish'
+from tunfish.client.model import WireGuardInterface
+from tunfish.client.util import setup_logging
+
+# FIXME: Remove this.
 CERTPATH = '/vagrant/certs'
 
-
-class Interface:
-
-    def __init__(self):
-        self.ifname = None
-        self.ip = None
-
-        from pyroute2 import WireGuard
-        self.wg = WireGuard()
-
-    def create(self, **kwargs):
-        # Create WireGuard Interface
-        self.ifname = kwargs.get('ifname')
-        self.ip = kwargs.get('ip')
-
-        with IPDB() as ip:
-            dev = ip.create(kind='wireguard', ifname=self.ifname)
-            dev.add_ip(self.ip)
-            dev.up()
-            dev.commit()
-
-        self.wg.set(self.ifname, private_key=kwargs.get('privatekey'), listen_port=kwargs.get('listenport'))
-
-    # noch nicht getestet
-    def delete(self, **kwargs):
-        self.ifname = kwargs.get('ifname')
-        with IPDB() as ip:
-            dev = ip.delete(ifname=self.ifname)
-            dev.commit()
-
-    def addpeer(self, **kwargs):
-        # Create WireGuard object
-
-        # build peer dict
-        peer = {}
-        for key in kwargs.keys():
-            if key == 'publickey':
-                peer = {**peer, **{'public_key': kwargs.get('publickey')}}
-            if key == 'endpointaddr':
-                peer = {**peer, **{'endpoint_addr': kwargs.get('endpointaddr')}}
-            if key == 'endpointport':
-                peer = {**peer, **{'endpoint_port': kwargs.get('endpointport')}}
-            if key == 'keepalive':
-                peer = {**peer, **{'persistent_keepalive': kwargs.get('keepalive')}}
-            if key == 'allowedips':
-                peer = {**peer, **{'allowed_ips': kwargs.get('allowedips')}}
-
-        print(f"peer: {peer}")
-
-        # add peer
-        self.wg.set(self.ifname, peer=peer)
-
-    def removepeer(self):
-        pass
+logger = logging.getLogger(__name__)
 
 
 class TunfishClientSession(ApplicationSession):
@@ -80,22 +31,24 @@ class TunfishClientSession(ApplicationSession):
     async def onJoin(self, details):
 
         def got(started, msg, ff):
-            print(f"result received")
+            logger.info(f"result received")
             res = ff.result()
             duration = 1000. * (time.process_time() - started)
-            print("{}: {} in {}".format(msg, res, duration))
+            logger.info("{}: {} in {}".format(msg, res, duration))
             if msg == "REQUEST GATEWAY":
                 # TODO: open interface
 
-                interface = Interface()
-                device = IPRoute()
+                interface = WireGuardInterface()
 
                 ip_and_mask = f"{self.tfcfg['ip']}/{self.tfcfg['mask']}"
 
                 # new interface/wg control
-                print(f"new control")
+                logger.info(f"new control")
                 interface.create(ifname=self.tfcfg['device_id'], ip=ip_and_mask, privatekey=self.tfcfg['wgprvkey'], listenport=42001)
                 interface.addpeer(ifname=self.tfcfg['device_id'], publickey=res['wgpubkey'], endpointaddr=res['endpoint'], endpointport=res['listen_port'], keepalive=10, allowedips={'0.0.0.0/0'})
+
+                # TODO: Maybe refactor all of this into "WireGuardInterface"...
+                device = IPRoute()
 
                 # set rule
                 # router.dev.rule('del', table=10, src='192.168.100.10/24')
@@ -159,7 +112,7 @@ class TunfishClient:
 
         # url = os.environ.get("AUTOBAHN_DEMO_ROUTER", u"wss://127.0.0.1:8080/ws")
         url = os.environ.get("AUTOBAHN_DEMO_ROUTER", u"wss://172.16.42.2:8080/ws")
-        print(f"URL: {url}")
+        logger.info(f"URL: {url}")
         if six.PY2 and type(url) == six.binary_type:
             url = url.decode('utf8')
         realm = u"tf_cb_router"
@@ -173,5 +126,6 @@ class TunfishClient:
               help="The configuration file",
               required=True)
 def start(config: Path):
+    setup_logging(logging.DEBUG)
     client = TunfishClient(config_file=config)
     client.start()

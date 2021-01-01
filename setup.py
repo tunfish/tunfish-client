@@ -53,7 +53,7 @@ setup(name='tunfish-client',
       ],
       entry_points={
           'console_scripts': [
-              'tf-client           = tunfish.client:start',
+              'tf-client           = tunfish.client.core:start',
           ],
       },
 )
