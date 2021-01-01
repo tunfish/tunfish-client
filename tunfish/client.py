@@ -71,9 +71,11 @@ class Interface:
         pass
 
 
-class Component(ApplicationSession):
+class TunfishClientSession(ApplicationSession):
 
-    data = None
+    def __init__(self, *args, **kwargs):
+        super(TunfishClientSession, self).__init__(*args, **kwargs)
+        self.tfcfg = self.config.extra["tunfish_config"]
 
     async def onJoin(self, details):
 
@@ -88,19 +90,21 @@ class Component(ApplicationSession):
                 interface = Interface()
                 device = IPRoute()
 
+                ip_and_mask = f"{self.tfcfg['ip']}/{self.tfcfg['mask']}"
+
                 # new interface/wg control
                 print(f"new control")
-                interface.create(ifname=self.data['device_id'], ip=self.data['ip']+"/"+self.data['mask'], privatekey=self.data['wgprvkey'], listenport=42001)
-                interface.addpeer(ifname=self.data['device_id'], publickey=res['wgpubkey'], endpointaddr=res['endpoint'], endpointport=res['listen_port'], keepalive=10, allowedips={'0.0.0.0/0'})
+                interface.create(ifname=self.tfcfg['device_id'], ip=ip_and_mask, privatekey=self.tfcfg['wgprvkey'], listenport=42001)
+                interface.addpeer(ifname=self.tfcfg['device_id'], publickey=res['wgpubkey'], endpointaddr=res['endpoint'], endpointport=res['listen_port'], keepalive=10, allowedips={'0.0.0.0/0'})
 
                 # set rule
                 # router.dev.rule('del', table=10, src='192.168.100.10/24')
                 # router.dev.rule('add', table=10, src='172.16.100.15/16')
                 # router.dev.rule('add', table=10, src='10.0.23.15/16')
-                device.rule('add', table=10, src=self.data['ip']+"/"+self.data['mask'])
+                device.rule('add', table=10, src=ip_and_mask)
                 # set route
                 # router.dev.route('del', table=10, src='192.168.100.10/24', oif=idx)
-                idx = device.link_lookup(ifname=self.data['device_id'])[0]
+                idx = device.link_lookup(ifname=self.tfcfg['device_id'])[0]
                 device.route('add', table=10, src='10.0.42.15/16', gateway='10.0.23.15', oif=idx)
 
                 # iptables
@@ -112,16 +116,10 @@ class Component(ApplicationSession):
                 rule.target = target
                 chain.insert_rule(rule)
 
-        print(f"EXTRA: {self.config.extra['v1']}")
-
-        config_file = f"{PATH}/{self.config.extra['v1']}.json"
-        with open(config_file, 'r') as f:
-            self.data = json.load(f)
-        print(f"self.data: {self.data}")
         t1 = time.process_time()
 
-        # task = self.call(u'com.portier.requestgateway', self.data, options=CallOptions(timeout=0))
-        task = self.call(u'com.portier.request_gateway', self.data)
+        # task = self.call(u'com.portier.requestgateway', self.tfcfg, options=CallOptions(timeout=0))
+        task = self.call(u'com.portier.request_gateway', self.tfcfg)
         task.add_done_callback(partial(got, t1, "REQUEST GATEWAY"))
         await asyncio.gather(task)
 
@@ -168,8 +166,8 @@ class TunfishClient:
         if six.PY2 and type(url) == six.binary_type:
             url = url.decode('utf8')
         realm = u"tf_cb_router"
-        runner = ApplicationRunner(url, realm, ssl=client_ctx, extra={'v1': conf})
-        runner.run(Component)
+        runner = ApplicationRunner(url, realm, ssl=client_ctx, extra={'tunfish_config': self.clientdata})
+        runner.run(TunfishClientSession)
 
 
 def start():
