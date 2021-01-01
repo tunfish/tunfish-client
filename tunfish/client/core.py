@@ -17,7 +17,7 @@ from tunfish.client.model import WireGuardInterface
 from tunfish.client.util import setup_logging
 
 # FIXME: Remove this.
-CERTPATH = '/vagrant/certs'
+CERTPATH = Path('/vagrant/certs')
 
 logger = logging.getLogger(__name__)
 
@@ -98,9 +98,19 @@ class TunfishClient:
 
     def start(self):
 
-        cf = f"{CERTPATH}/{self.settings['cf']}"
-        kf = f"{CERTPATH}/{self.settings['kf']}"
-        caf = f"{CERTPATH}/{self.settings['caf']}"
+        # url = os.environ.get("AUTOBAHN_DEMO_ROUTER", u"wss://127.0.0.1:8080/ws")
+        url = os.environ.get("AUTOBAHN_DEMO_ROUTER", u"wss://172.16.42.2:8080/ws")
+        logger.info(f"URL: {url}")
+        if six.PY2 and type(url) == six.binary_type:
+            url = url.decode('utf8')
+        realm = u"tf_cb_router"
+        runner = ApplicationRunner(url, realm, ssl=self.make_ssl_context(), extra={'tunfish_settings': self.settings})
+        runner.run(TunfishClientSession)
+
+    def make_ssl_context(self):
+        cf = CERTPATH / self.settings['cf']
+        kf = CERTPATH / self.settings['kf']
+        caf = CERTPATH / self.settings['caf']
 
         client_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         client_ctx.verify_mode = ssl.CERT_REQUIRED
@@ -110,14 +120,7 @@ class TunfishClient:
         client_ctx.load_verify_locations(cafile=caf)
         client_ctx.set_ciphers('ECDH+AESGCM')
 
-        # url = os.environ.get("AUTOBAHN_DEMO_ROUTER", u"wss://127.0.0.1:8080/ws")
-        url = os.environ.get("AUTOBAHN_DEMO_ROUTER", u"wss://172.16.42.2:8080/ws")
-        logger.info(f"URL: {url}")
-        if six.PY2 and type(url) == six.binary_type:
-            url = url.decode('utf8')
-        realm = u"tf_cb_router"
-        runner = ApplicationRunner(url, realm, ssl=client_ctx, extra={'tunfish_settings': self.settings})
-        runner.run(TunfishClientSession)
+        return client_ctx
 
 
 @click.command(help="""Bootstrap and maintain connection to Tunfish network.""")
