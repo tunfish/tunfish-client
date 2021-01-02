@@ -48,6 +48,8 @@ setup(name='tunfish-client',
           'autobahn',
           'click',
           'json5',
+          'hashids',
+          'requests',
       ],
       dependency_links=[
       ],
