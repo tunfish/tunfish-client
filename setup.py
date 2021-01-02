@@ -41,7 +41,6 @@ setup(name='tunfish-client',
       package_data={
       },
       zip_safe=False,
-      test_suite='tunfish.test',
       install_requires=[
           'python-iptables',
           'pyroute2',
@@ -51,6 +50,7 @@ setup(name='tunfish-client',
           'hashids',
           'requests',
           'appdirs',
+          'uritools',
       ],
       dependency_links=[
       ],

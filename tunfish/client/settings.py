@@ -5,24 +5,41 @@ from pathlib import Path
 from typing import Union
 
 import json5
+import uritools
 
 
 @dataclass
 class BusSettings:
 
-    broker_url: str = None
+    # The WAMP broker to connect to.
+    broker_url: uritools.SplitResult = None
+
+    # Private key and client certificate for encryption and authentication.
     private_key_path: Path = None
     certificate_path: Path = None
 
 
 @dataclass
 class WireGuardSettings:
+    """
+    Settings for WireGuard.
 
-    network_name: str = None
+    https://wiki.archlinux.org/index.php/WireGuard#Client_config
+    """
+
+    # Where to dial into.
+    endpoint: uritools.SplitResult = None
+
+    # Private and public keys.
     private_key: str = None
     public_key: str = None
-    client_ip: Union[IPv4Network, IPv6Network] = None
-    vpn_ip: Union[IPv4Address, IPv6Address] = None
+
+    # The client IP address.
+    address: Union[IPv4Network, IPv6Network] = None
+
+    # Network name.
+    # TODO: Where do we use it?
+    network_name: str = None
 
 
 @dataclass
@@ -50,18 +67,25 @@ class TunfishClientSettings:
 
             self.device_id = settings.get("device_id")
 
-            self.bus.broker_url = settings.get("bus_broker_url")
-            if "kf" in settings:
-                self.bus.private_key_path = configfile_path / settings["kf"]
-            if "cf" in settings:
-                self.bus.certificate_path = configfile_path / settings["cf"]
+            bus_settings = settings.get("bus", {})
+            if "broker" in bus_settings:
+                self.bus.broker_url = uritools.urisplit(bus_settings["broker"])
+            if "key" in bus_settings:
+                self.bus.private_key_path = configfile_path / bus_settings["key"]
+            if "cert" in bus_settings:
+                self.bus.certificate_path = configfile_path / bus_settings["cert"]
 
             wireguard_settings = settings.get("wireguard", {})
-            self.wireguard.network_name = wireguard_settings.get("network")
-            if "ip" in wireguard_settings and "mask" in wireguard_settings:
-                self.wireguard.client_ip = IPv4Network(f"{wireguard_settings['ip']}/{wireguard_settings['mask']}")
-            if "vpn_ip" in wireguard_settings:
-                self.wireguard.vpn_ip = IPv4Address(wireguard_settings["vpn_ip"])
+            if "endpoint" in wireguard_settings:
+                self.wireguard.endpoint = uritools.urisplit("null://" + wireguard_settings["endpoint"])
+            if "private_key" in wireguard_settings:
+                self.wireguard.private_key = wireguard_settings["private_key"]
+            if "public_key" in wireguard_settings:
+                self.wireguard.public_key = wireguard_settings["public_key"]
+            if "address" in wireguard_settings:
+                self.wireguard.address = IPv4Network(wireguard_settings["address"])
+            if "network" in wireguard_settings:
+                self.wireguard.network_name = wireguard_settings["network"]
 
         # Fill in the gaps.
         if not self.bus.private_key_path:
