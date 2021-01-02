@@ -7,17 +7,16 @@ import time
 from functools import partial
 from pathlib import Path
 
+import appdirs
 import click
 import json5
 import six
 from autobahn.asyncio.wamp import ApplicationRunner, ApplicationSession
 from pyroute2 import IPRoute
 
+from tunfish.client.crypto import AsymmetricKey
 from tunfish.client.model import WireGuardInterface
 from tunfish.client.util import setup_logging
-
-# FIXME: Remove this.
-CERTPATH = Path('/vagrant/certs')
 
 logger = logging.getLogger(__name__)
 
@@ -91,16 +90,52 @@ class TunfishClientSession(ApplicationSession):
 
 class TunfishClient:
 
+    appname = "tunfish-client"
+
+    # TODO: Make autosign URL configurable.
+    autosign_url = "http://localhost:8000/pki/autosign"
+
     def __init__(self, config_file: Path):
-        self.settings = None
+
+        self.config_path: Path = Path(appdirs.user_config_dir(self.appname))
+        self.config_path.mkdir(parents=True, exist_ok=True)
+
+        self.private_key_path: Path = self.config_path / "bus.key"
+        self.certificate_path: Path = self.config_path / "bus.pem"
+
+        self.settings: dict = None
         with open(config_file, 'r') as f:
             self.settings = json5.load(f)
+
+        self.autocrypt()
+
+    def autocrypt(self):
+        """
+        Generate X.509 material and autosign it at CA.
+        """
+
+        # TODO: Check if certificate is about to expire.
+
+        if not (self.private_key_path.exists() and self.certificate_path.exists()):
+            logger.info(f"Generating X.509 material to {self.config_path}")
+
+            try:
+                akey = AsymmetricKey()
+                akey.make_rsa_key()
+                akey.make_csr()
+
+                akey.submit_csr(self.autosign_url)
+
+                akey.save_key(self.private_key_path)
+                akey.save_cert(self.certificate_path)
+            except Exception as ex:
+                logger.error(f"Generating X.509 material failed: {ex}")
 
     def start(self):
 
         # url = os.environ.get("AUTOBAHN_DEMO_ROUTER", u"wss://127.0.0.1:8080/ws")
         url = os.environ.get("AUTOBAHN_DEMO_ROUTER", u"wss://172.16.42.2:8080/ws")
-        logger.info(f"URL: {url}")
+        logger.info(f"Connecting to broker address {url}")
         if six.PY2 and type(url) == six.binary_type:
             url = url.decode('utf8')
         realm = u"tf_cb_router"
@@ -108,16 +143,21 @@ class TunfishClient:
         runner.run(TunfishClientSession)
 
     def make_ssl_context(self):
-        cf = CERTPATH / self.settings['cf']
-        kf = CERTPATH / self.settings['kf']
-        caf = CERTPATH / self.settings['caf']
+
+        logger.info(f"Loading X.509 material from {self.config_path}")
+
+        if not self.certificate_path.exists():
+            logger.error(f"File not found: {self.certificate_path}")
+
+        if not self.private_key_path.exists():
+            logger.error(f"File not found: {self.private_key_path}")
 
         client_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         client_ctx.verify_mode = ssl.CERT_REQUIRED
         client_ctx.options |= ssl.OP_SINGLE_ECDH_USE
         client_ctx.options |= ssl.OP_NO_COMPRESSION
-        client_ctx.load_cert_chain(certfile=cf, keyfile=kf)
-        client_ctx.load_verify_locations(cafile=caf)
+        client_ctx.load_cert_chain(certfile=self.certificate_path, keyfile=self.private_key_path)
+        #client_ctx.load_verify_locations(cafile=caf)
         client_ctx.set_ciphers('ECDH+AESGCM')
 
         return client_ctx

@@ -50,6 +50,7 @@ setup(name='tunfish-client',
           'json5',
           'hashids',
           'requests',
+          'appdirs',
       ],
       dependency_links=[
       ],

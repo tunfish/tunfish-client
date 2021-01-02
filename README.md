@@ -16,11 +16,6 @@ tf-client --config ../sandbox/etc/tunfish/tf-0815.json5
   // The device ID
   "device_id": "tf-0815",
 
-  // Key and certificate material to authenticate with WAMP message broker.
-  "cf": "tf-0815.pem",
-  "kf": "tf-0815.key",
-  "caf": "ca.pem",
-
   // WireGuard private and public key.
   "wgprvkey": "CyqisJ1eVXzjkMocWsRkAaXyXMBOxpDLFgTdDQTtXjM=",
   "wgpubkey": "/46NfRLITFUDZAb1ZANxqrGb7hPsciTX0cFEXZBUKjk=",
