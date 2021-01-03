@@ -8,11 +8,12 @@
 
   // How to connect and authenticate with WAMP message broker
   "bus": {
+    "autosign": "http://localhost:8000/pki/autosign",
     "broker": "wss://172.16.42.2:8080/ws",
-    "key": "tf-0815.key",
-    "cert": "tf-0815.pem",
+    "key": "tf-0815-bus.key",
+    "cert": "tf-0815-bus.pem",
     // TODO: Is it really needed?
-    //"cacert": "ca.pem",
+    //"cacert": "ca-bus.pem",
   },
 
   // WireGuard settings

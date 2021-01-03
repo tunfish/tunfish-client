@@ -49,14 +49,13 @@ setup(name='tunfish-client',
           'json5',
           'hashids',
           'requests',
-          'appdirs',
           'uritools',
       ],
       dependency_links=[
       ],
       entry_points={
           'console_scripts': [
-              'tf-client           = tunfish.client.core:start',
+              'tf-client = tunfish.client.cli:main',
           ],
       },
 )

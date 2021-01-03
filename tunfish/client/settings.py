@@ -11,6 +11,9 @@ import uritools
 @dataclass
 class BusSettings:
 
+    # The URL to the CA for automatically signing a CSR.
+    autosign_url: uritools.SplitResult = None
+
     # The WAMP broker to connect to.
     broker_url: uritools.SplitResult = None
 
@@ -57,7 +60,7 @@ class TunfishClientSettings:
         configfile_path = filename.parent
 
         settings = {}
-        with open(filename, 'r') as f:
+        with open(filename, "r") as f:
             settings = json5.load(f)
             self.path = filename
 
@@ -68,6 +71,8 @@ class TunfishClientSettings:
             self.device_id = settings.get("device_id")
 
             bus_settings = settings.get("bus", {})
+            if "autosign" in bus_settings:
+                self.bus.autosign_url = uritools.urisplit(bus_settings["autosign"])
             if "broker" in bus_settings:
                 self.bus.broker_url = uritools.urisplit(bus_settings["broker"])
             if "key" in bus_settings:
@@ -77,7 +82,9 @@ class TunfishClientSettings:
 
             wireguard_settings = settings.get("wireguard", {})
             if "endpoint" in wireguard_settings:
-                self.wireguard.endpoint = uritools.urisplit("null://" + wireguard_settings["endpoint"])
+                self.wireguard.endpoint = uritools.urisplit(
+                    "null://" + wireguard_settings["endpoint"]
+                )
             if "private_key" in wireguard_settings:
                 self.wireguard.private_key = wireguard_settings["private_key"]
             if "public_key" in wireguard_settings:

@@ -18,6 +18,7 @@ class AsymmetricKey:
 
     https://cryptography.io/en/latest/x509/tutorial.html#creating-a-certificate-signing-request-csr
     """
+
     KEY_SIZE = 4096
 
     def __init__(self):
@@ -47,10 +48,14 @@ class AsymmetricKey:
         common_name = Nagamani19().generate()
 
         # Generate the CSR.
-        csr_unsigned = x509.CertificateSigningRequestBuilder().subject_name(x509.Name([
-            # Provide various details about who we are.
-            x509.NameAttribute(NameOID.COMMON_NAME, common_name),
-        ]))
+        csr_unsigned = x509.CertificateSigningRequestBuilder().subject_name(
+            x509.Name(
+                [
+                    # Provide various details about who we are.
+                    x509.NameAttribute(NameOID.COMMON_NAME, common_name),
+                ]
+            )
+        )
 
         # Sign the CSR with the private key.
         self.csr = csr_unsigned.sign(self.private_key, hashes.SHA512())
@@ -67,7 +72,9 @@ class AsymmetricKey:
         """
         csr_pem = self.get_csr()
         try:
-            response = requests.post(url, data=csr_pem, headers={"Content-Type": "application/x-pem-file"})
+            response = requests.post(
+                url, data=csr_pem, headers={"Content-Type": "application/x-pem-file"}
+            )
         except Exception as ex:
             raise ValueError(f"Automatically signing certificate failed: {ex}")
 
@@ -82,12 +89,14 @@ class AsymmetricKey:
         Write the private key to disk for safe keeping.
         """
         with open(filename, "wb") as f:
-            f.write(self.private_key.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm=serialization.NoEncryption(),
-                #encryption_algorithm=serialization.BestAvailableEncryption(b"passphrase"),
-            ))
+            f.write(
+                self.private_key.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.TraditionalOpenSSL,
+                    encryption_algorithm=serialization.NoEncryption(),
+                    # encryption_algorithm=serialization.BestAvailableEncryption(b"passphrase"),
+                )
+            )
 
     def save_cert(self, filename: Path):
         """
@@ -105,9 +114,9 @@ class Nagamani:
     """
 
     precisions = {
-        's': 1,
-        'ms': 1000,
-        'ns': 1000000,
+        "s": 1,
+        "ms": 1000,
+        "ns": 1000000,
     }
 
     def nagamani_id(self, year, salt, precision):
@@ -125,9 +134,9 @@ class Nagamani:
             yzgOlvap
         """
 
-        assert type(year) is int, 'Year must be integer'
-        assert salt is not None, 'Salt must be given'
-        assert precision is not None, 'Precision must be one of s, ms, ns'
+        assert type(year) is int, "Year must be integer"
+        assert salt is not None, "Salt must be given"
+        assert precision is not None, "Precision must be one of s, ms, ns"
 
         scaling = self.precisions.get(precision)
 
@@ -153,7 +162,7 @@ class Nagamani:
 
 class Nagamani19(Nagamani):
 
-    size_map = {'small': 's', 'medium': 'ms', 'large': 'ns'}
+    size_map = {"small": "s", "medium": "ms", "large": "ns"}
 
     def generate(self, size=None):
         salt = self.gensalt()
@@ -161,7 +170,7 @@ class Nagamani19(Nagamani):
         return self.nagamani_id(2019, salt, precision)
 
     def get_precision(self, selector):
-        selector = selector or 'large'
+        selector = selector or "large"
         return self.size_map[selector]
 
     @staticmethod
