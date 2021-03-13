@@ -18,9 +18,6 @@ logger = logging.getLogger(__name__)
 
 class TunfishClientService:
 
-    # TODO: Make autosign URL configurable.
-    # autosign_url = "http://localhost:8000/pki/RootCA/autosign"
-
     def __init__(
         self, settings: TunfishClientSettings, start_interface_callback: callable
     ):
