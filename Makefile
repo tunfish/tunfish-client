@@ -18,4 +18,4 @@ setup-virtualenv:
 
 test: setup-virtualenv
 	@test -e $(pytest) || $(pip) install --requirement requirements-test.txt
-	$(pytest) tests
+	$(pytest) tests -vvv

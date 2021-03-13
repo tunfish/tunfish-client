@@ -6,7 +6,7 @@ Please note this software is in its very early stages.
 
 ## Synopsis
 ```bash
-tf-node --config examples/tf-0815.json5
+tf-node --config=examples/tf-0815.json5
 ```
 
 ## Example configuration
@@ -21,12 +21,12 @@ tf-node --config examples/tf-0815.json5
 
   // How to connect and authenticate with WAMP message broker
   "bus": {
-    "autosign": "http://localhost:8000/pki/RootCA/autosign",
-    "broker": "wss://172.16.42.2:8080/ws",
-    "key": "tf-0815-bus.key",
-    "cert": "tf-0815-bus.pem",
-    // TODO: Is it really needed?
-    //"cacert": "ca-bus.pem",
+    "ca_url": "http://localhost:8000/",
+    "ca_name": "RootCA",
+    "broker": "wss://localhost:8080/ws",
+    //"key": "tf-0815-bus.key",
+    //"cert": "tf-0815-bus.pem",
+    //"cacert": "cacert-bus.pem",
   },
 
   // WireGuard settings
