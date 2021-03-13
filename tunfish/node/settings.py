@@ -17,7 +17,7 @@ class BusSettings:
     # The WAMP broker to connect to.
     broker_url: uritools.SplitResult = None
 
-    # Private key and client certificate for encryption and authentication.
+    # Private key and node certificate for encryption and authentication.
     private_key_path: Path = None
     certificate_path: Path = None
 
@@ -37,7 +37,7 @@ class WireGuardSettings:
     private_key: str = None
     public_key: str = None
 
-    # The client IP address.
+    # The node IP address.
     address: Union[IPv4Network, IPv6Network] = None
 
     # Network name.

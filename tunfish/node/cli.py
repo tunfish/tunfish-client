@@ -4,8 +4,8 @@ from pathlib import Path
 
 import click
 
-from tunfish.client.core import TunfishClient
-from tunfish.client.util import setup_logging
+from tunfish.node.core import TunfishClient
+from tunfish.node.util import setup_logging
 
 logger = logging.getLogger(__name__)
 

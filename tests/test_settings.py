@@ -3,7 +3,7 @@ from pathlib import Path
 
 import uritools
 
-from tunfish.client.settings import TunfishClientSettings
+from tunfish.node.settings import TunfishClientSettings
 
 
 def test_0815():

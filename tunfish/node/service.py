@@ -9,9 +9,9 @@ import six
 from autobahn.asyncio import ApplicationSession
 from autobahn.asyncio.wamp import ApplicationRunner
 
-from tunfish.client.crypto import AsymmetricKey
-from tunfish.client.model import WireGuardPeer
-from tunfish.client.settings import TunfishClientSettings
+from tunfish.node.crypto import AsymmetricKey
+from tunfish.node.model import WireGuardPeer
+from tunfish.node.settings import TunfishClientSettings
 
 logger = logging.getLogger(__name__)
 

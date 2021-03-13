@@ -6,7 +6,7 @@ Please note this software is in its very early stages.
 
 ## Synopsis
 ```bash
-tf-client --config examples/tf-0815.json5
+tf-node --config examples/tf-0815.json5
 ```
 
 ## Example configuration

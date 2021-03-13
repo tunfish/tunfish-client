@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup, find_namespace_packages
 
-setup(name='tunfish-client',
+setup(name='tunfish-node',
       version='0.1.0',
       description='Convenient VPN infrastructure on top of secure WireGuard tunnels',
       #long_description=README,
@@ -55,7 +55,7 @@ setup(name='tunfish-client',
       ],
       entry_points={
           'console_scripts': [
-              'tf-client = tunfish.client.cli:main',
+              'tf-node = tunfish.node.cli:main',
           ],
       },
 )

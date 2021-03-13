@@ -1,6 +1,6 @@
 from cryptography.x509 import CertificateSigningRequest
 
-from tunfish.client.crypto import AsymmetricKey
+from tunfish.node.crypto import AsymmetricKey
 
 
 def test_crypto():
