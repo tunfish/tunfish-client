@@ -5,11 +5,11 @@ import ssl
 import time
 from functools import partial
 
-import six
+from pki_client.core import PkiClient
+
 from autobahn.asyncio import ApplicationSession
 from autobahn.asyncio.wamp import ApplicationRunner
 
-from tunfish.node.crypto import AsymmetricKey
 from tunfish.node.model import WireGuardPeer
 from tunfish.node.settings import TunfishClientSettings
 
@@ -42,26 +42,26 @@ class TunfishClientService:
             logger.info(f"Generating X.509 material")
 
             try:
-                akey = AsymmetricKey()
-                akey.make_rsa_key()
-                akey.make_csr()
+                pki_client = PkiClient(ca_baseurl=self.settings.bus.ca_url.geturi(), ca_name=self.settings.bus.ca_name)
 
-                # Submit CSR to CA for auto-signing.
-                akey.submit_csr(self.settings.bus.autosign_url.geturi())
+                # Submit CSR to CA for auto-signing and save key material to disk.
+                pki_client.mkcert(
+                    private_key_path=self.settings.bus.private_key_path,
+                    cert_path=self.settings.bus.certificate_path,
+                    profile="client",
+                    common_name_prefix="node",
+                )
 
-                # Save key material to disk.
-                akey.save_key(self.settings.bus.private_key_path)
-                akey.save_cert(self.settings.bus.certificate_path)
+                # Also save CA certificate.
+                pki_client.save_cacert(self.settings.bus.cacert_path)
 
             except Exception as ex:
-                logger.error(f"Generating X.509 material failed: {ex}")
+                logger.exception(f"Generating X.509 material failed: {ex}")
 
     def start(self):
 
         url = self.settings.bus.broker_url.geturi()
         logger.info(f"Connecting to broker address {url}")
-        if six.PY2 and type(url) == six.binary_type:
-            url = url.decode("utf8")
 
         # FIXME: This is still hardcoded.
         realm = "tf_cb_router"
@@ -83,19 +83,20 @@ class TunfishClientService:
         if not self.settings.bus.private_key_path.exists():
             logger.error(f"File not found: {self.settings.bus.private_key_path}")
 
-        client_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        client_ctx = ssl.SSLContext()
+
+        client_ctx.load_verify_locations(cafile=self.settings.bus.cacert_path)
         client_ctx.verify_mode = ssl.CERT_REQUIRED
-        client_ctx.options |= ssl.OP_SINGLE_ECDH_USE
-        client_ctx.options |= ssl.OP_NO_COMPRESSION
+        client_ctx.check_hostname = False
+
         client_ctx.load_cert_chain(
             certfile=self.settings.bus.certificate_path,
             keyfile=self.settings.bus.private_key_path,
         )
 
-        # TODO: Review - do we really need this?
-        # client_ctx.load_verify_locations(cafile=caf)
-
         client_ctx.set_ciphers("ECDH+AESGCM")
+        client_ctx.options |= ssl.OP_SINGLE_ECDH_USE
+        client_ctx.options |= ssl.OP_NO_COMPRESSION
 
         return client_ctx
 

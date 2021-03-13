@@ -50,6 +50,7 @@ setup(name='tunfish-node',
           'hashids',
           'requests',
           'uritools',
+          'pki-client==0.2.1',
       ],
       dependency_links=[
       ],
