@@ -21,7 +21,7 @@ tf-client --config examples/tf-0815.json5
 
   // How to connect and authenticate with WAMP message broker
   "bus": {
-    "autosign": "http://localhost:8000/pki/autosign",
+    "autosign": "http://localhost:8000/pki/RootCA/autosign",
     "broker": "wss://172.16.42.2:8080/ws",
     "key": "tf-0815-bus.key",
     "cert": "tf-0815-bus.pem",

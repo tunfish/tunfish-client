@@ -192,5 +192,5 @@ if __name__ == "__main__":
     akey = AsymmetricKey()
     akey.make_rsa_key()
     akey.make_csr()
-    cert_pem = akey.submit_csr("http://localhost:8000/pki/autosign")
+    cert_pem = akey.submit_csr("http://localhost:8000/pki/RootCA/autosign")
     print(cert_pem.decode("utf-8"))
