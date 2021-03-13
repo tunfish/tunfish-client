@@ -52,6 +52,11 @@ setup(name='tunfish-node',
           'uritools',
           'pki-client==0.2.1',
       ],
+      extras_require={
+          "gateway": [
+              "pysodium",
+          ],
+      },
       dependency_links=[
       ],
       entry_points={
