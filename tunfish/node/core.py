@@ -4,9 +4,9 @@ from pathlib import Path
 
 from pyroute2 import IPRoute
 
-from tunfish.client.model import WireGuardInterface, WireGuardPeer
-from tunfish.client.service import TunfishClientService
-from tunfish.client.settings import TunfishClientSettings
+from tunfish.node.model import WireGuardInterface, WireGuardPeer
+from tunfish.node.service import TunfishClientService
+from tunfish.node.settings import TunfishClientSettings
 
 logger = logging.getLogger(__name__)
 

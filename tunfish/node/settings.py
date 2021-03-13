@@ -12,14 +12,16 @@ import uritools
 class BusSettings:
 
     # The URL to the CA for automatically signing a CSR.
-    autosign_url: uritools.SplitResult = None
+    ca_url: uritools.SplitResult = None
+    ca_name: str = None
 
     # The WAMP broker to connect to.
     broker_url: uritools.SplitResult = None
 
-    # Private key and client certificate for encryption and authentication.
+    # Private key and node certificate for encryption and authentication.
     private_key_path: Path = None
     certificate_path: Path = None
+    cacert_path: str = None
 
 
 @dataclass
@@ -37,7 +39,7 @@ class WireGuardSettings:
     private_key: str = None
     public_key: str = None
 
-    # The client IP address.
+    # The node IP address.
     address: Union[IPv4Network, IPv6Network] = None
 
     # Network name.
@@ -71,14 +73,18 @@ class TunfishClientSettings:
             self.device_id = settings.get("device_id")
 
             bus_settings = settings.get("bus", {})
-            if "autosign" in bus_settings:
-                self.bus.autosign_url = uritools.urisplit(bus_settings["autosign"])
+            if "ca_url" in bus_settings:
+                self.bus.ca_url = uritools.urisplit(bus_settings["ca_url"])
+            if "ca_name" in bus_settings:
+                self.bus.ca_name = bus_settings["ca_name"]
             if "broker" in bus_settings:
                 self.bus.broker_url = uritools.urisplit(bus_settings["broker"])
             if "key" in bus_settings:
                 self.bus.private_key_path = configfile_path / bus_settings["key"]
             if "cert" in bus_settings:
                 self.bus.certificate_path = configfile_path / bus_settings["cert"]
+            if "cacert" in bus_settings:
+                self.bus.cacert_path = configfile_path / bus_settings["cacert"]
 
             wireguard_settings = settings.get("wireguard", {})
             if "endpoint" in wireguard_settings:
@@ -99,3 +105,5 @@ class TunfishClientSettings:
             self.bus.private_key_path = configfile_path / f"{configfile_name}-bus.key"
         if not self.bus.certificate_path:
             self.bus.certificate_path = configfile_path / f"{configfile_name}-bus.pem"
+        if not self.bus.cacert_path:
+            self.bus.cacert_path = configfile_path / f"cacert-bus.pem"
