@@ -50,6 +50,7 @@ setup(name='tunfish-client',
           'hashids',
           'requests',
           'uritools',
+          'qrcode',
       ],
       dependency_links=[
       ],
